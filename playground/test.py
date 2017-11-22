@@ -2,15 +2,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from torch import autograd
+from torch import autograd, optim
 from torch.autograd import Variable
 
 batch_size = 20
 input_size = 10
 output_size = 1
 hidden_size = 5
-
 global_avg = 2
+
+learning_rate = 0.05
 
 class Model(nn.Module):
 	def __init__(self, global_avg, input_size, hidden_size, output_size):
@@ -21,6 +22,7 @@ class Model(nn.Module):
 		self.layer = nn.Linear(4, global_avg)
 
 	def forward(self, x):
+		x = x.cuda()	#copy to GPU
 		out1 = self.net1(x)
 		out2 = self.net2(x)
 		out = torch.cat((out1, out2), 1)
@@ -55,11 +57,22 @@ torch.manual_seed(0)
 input = autograd.Variable(torch.rand(batch_size, input_size))
 # print "input:", input.view(1,-1)
 
-target = autograd.Variable((torch.rand(batch_size, global_avg)*2).long())
+target = autograd.Variable((torch.rand(batch_size)*2).long())
 # print "target:", target.view(1,-1)
 
-model = Model(global_avg, input_size, hidden_size, output_size).cuda()
+model = Model(global_avg, input_size, hidden_size, output_size).cuda(0)
+opt = optim.Adam(params=model.parameters(), lr=learning_rate)
 
-output = model(input)
-print output
+
+for epoch in xrange(1000):
+	output = model(input)
+	_, pred = output.max(1)
+#	print "target", target
+#	print "output", pred
+	loss = F.cross_entropy(output, target.cuda(0))
+	print 'loss', loss
+	model.zero_grad()
+	loss.backward()
+	opt.step()
+
 
